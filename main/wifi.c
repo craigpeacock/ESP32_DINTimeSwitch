@@ -15,8 +15,8 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
-#define CONFIG_ESP_WIFI_SSID "test"
-#define CONFIG_ESP_WIFI_PASSWORD "password"
+#define CONFIG_ESP_WIFI_SSID "test_ap"
+#define CONFIG_ESP_WIFI_PASSWORD "secretsquirrel"
 #define CONFIG_ESP_MAXIMUM_RETRY 0
 
 /* FreeRTOS event group to signal when we are connected*/
