@@ -2,8 +2,11 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
+#include "esp_log.h"
 #include "esp_event.h"
 #include "driver/gpio.h"
+
+static const char *TAG = "main";
 
 #include "wifi.h"
 #include "ntp.h"
@@ -16,10 +19,28 @@
 void parse_time(const struct tm *timeinfo);
 void init_gpio(void);
 
+void display_local_time(void)
+{
+	time_t now;
+	struct tm timeinfo;
+	char buf[26];
+	
+	time(&now);
+	localtime_r(&now, &timeinfo);
+	char *ret = asctime_r(&timeinfo, buf);
+	if (ret != NULL) {
+		char *ptr = strchr(buf, '\n');
+		if (ptr != NULL) *ptr = '\0';
+		ESP_LOGI(TAG, "Local Time: %s", buf);
+	}
+}
+
 void app_main(void)
 {
 	time_t now;
 	struct tm timeinfo;
+
+	ESP_LOGI(TAG, "ESP32 EVSE Smart Time Switch");
 
 	// Set timezone to Adelaide Time
 	setenv("TZ", "ACST-9:30ACDT,M10.1.0,M4.1.0/3", 1);
@@ -31,6 +52,7 @@ void app_main(void)
 	wifi_init_sta();
 	// Initialise network time
 	ntp_get_time();
+	display_local_time();
 
 	//aemo_get_price();
 

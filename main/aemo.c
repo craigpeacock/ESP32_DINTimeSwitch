@@ -134,6 +134,6 @@ void aemo_get_price(void)
 			//free(buffer);
 		}
 		esp_http_client_cleanup(client);
-		sleep(10);
+		sleep(60);
 	}
 }
