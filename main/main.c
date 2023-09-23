@@ -6,55 +6,48 @@
 #include "esp_event.h"
 #include "driver/gpio.h"
 
-static const char *TAG = "main";
-
+#include "defines.h"
 #include "wifi.h"
 #include "ntp.h"
+#include "http.h"
+#include "gpio.h"
 #include "aemo.h"
 
-#define GPIO_OUT1	16
-#define GPIO_OUT2	17
-#define GPIO_OUTPUT_PIN_SEL  ((1ULL<<GPIO_OUT1) | (1ULL<<GPIO_OUT2))
+static const char *TAG = "main";
 
 void parse_time(const struct tm *timeinfo);
-void init_gpio(void);
-
-void display_local_time(void)
-{
-	time_t now;
-	struct tm timeinfo;
-	char buf[26];
-	
-	time(&now);
-	localtime_r(&now, &timeinfo);
-	char *ret = asctime_r(&timeinfo, buf);
-	if (ret != NULL) {
-		char *ptr = strchr(buf, '\n');
-		if (ptr != NULL) *ptr = '\0';
-		ESP_LOGI(TAG, "Local Time: %s", buf);
-	}
-}
 
 void app_main(void)
 {
 	time_t now;
 	struct tm timeinfo;
 
-	ESP_LOGI(TAG, "ESP32 EVSE Smart Time Switch");
+	ESP_LOGW(TAG, "ESP32 EVSE Smart Time Switch V%s", VERSION);
 
 	// Set timezone to Adelaide Time
 	setenv("TZ", "ACST-9:30ACDT,M10.1.0,M4.1.0/3", 1);
 	tzset();
 
 	// Initialise GPIO
-	init_gpio();
+	gpio_init();
 	// Initialise network
 	wifi_init_sta();
 	// Initialise network time
-	ntp_get_time();
+	ntp_init();
 	display_local_time();
+	// Initialise http server
+	http_server_init();
 
-	//aemo_get_price();
+	struct aemo aemo_data;
+	aemo_data.region = "SA1";
+	aemo_data.settlement = malloc(25);
+	aemo_get_price(&aemo_data);
+	ESP_LOGI(TAG, "Settlement Date: %s",aemo_data.settlement);
+	ESP_LOGI(TAG, "Price: $%.02f MWh",aemo_data.price);
+	ESP_LOGI(TAG, "Total Demand: %.02f MW",aemo_data.totaldemand);
+	ESP_LOGI(TAG, "Export: %.02f MW",aemo_data.netinterchange);
+	ESP_LOGI(TAG, "Scheduled Generation (Baseload): %.02f MW",aemo_data.scheduledgeneration);
+	ESP_LOGI(TAG, "Semi Scheduled Generation (Renewable): %.02f MW",aemo_data.semischeduledgeneration);
 
 	while (1) {
 
@@ -71,10 +64,6 @@ void app_main(void)
 
 void parse_time(const struct tm *timeinfo)
 {
-	//char strftime_buf[64];
-	//strftime(strftime_buf, sizeof(strftime_buf), "%c", timeinfo);
-	//printf("Time: %s\n", strftime_buf);
-
 	printf("Time: %02d:%02d:%02d ",timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
 
 	printf("Network Tarrif: ");
@@ -91,15 +80,4 @@ void parse_time(const struct tm *timeinfo)
 		printf("Peak\r\n");
 		gpio_set_level(GPIO_OUT1, 0);
 	}
-}
-
-void init_gpio(void)
-{
-	gpio_reset_pin(GPIO_OUT1);
-	gpio_set_level(GPIO_OUT1, 0);
-	gpio_set_direction(GPIO_OUT1, GPIO_MODE_OUTPUT);
-
-	gpio_reset_pin(GPIO_OUT2);
-	gpio_set_level(GPIO_OUT2, 0);
-	gpio_set_direction(GPIO_OUT2, GPIO_MODE_OUTPUT);
 }

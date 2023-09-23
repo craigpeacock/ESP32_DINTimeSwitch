@@ -7,7 +7,7 @@
 #include "esp_system.h"
 #include "esp_event.h"
 #include "esp_sleep.h"
-#include "esp_spi_flash.h"
+#include "spi_flash_mmap.h"
 #include "esp_wifi.h"
 #include "esp_wifi_default.h"
 #include "esp_log.h"
@@ -48,7 +48,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 		ESP_LOGI(TAG,"connect to the AP fail");
 	} else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
 		ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-		ESP_LOGI(TAG, "Assigned IP:" IPSTR, IP2STR(&event->ip_info.ip));
+		ESP_LOGI(TAG, "Assigned IP: " IPSTR, IP2STR(&event->ip_info.ip));
 		s_retry_num = 0;
 		xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
 	}
@@ -106,11 +106,11 @@ void wifi_init_sta(void)
 	/* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
 	 * happened. */
 	if (bits & WIFI_CONNECTED_BIT) {
-		ESP_LOGI(TAG, "Connected to AP SSID:%s", CONFIG_ESP_WIFI_SSID);
+		ESP_LOGI(TAG, "Connected to AP SSID: %s", CONFIG_ESP_WIFI_SSID);
 	} else if (bits & WIFI_FAIL_BIT) {
-		ESP_LOGI(TAG, "Failed to connect to SSID:%s", CONFIG_ESP_WIFI_SSID);
+		ESP_LOGI(TAG, "Failed to connect to SSID: %s", CONFIG_ESP_WIFI_SSID);
 	} else {
-		ESP_LOGE(TAG, "UNEXPECTED EVENT");
+		ESP_LOGE(TAG, "Unexpected event");
 	}
 
 	//ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler));

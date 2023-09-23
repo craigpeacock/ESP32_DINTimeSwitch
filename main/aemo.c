@@ -8,7 +8,9 @@
 #include "esp_crt_bundle.h"
 #include "cJSON.h"
 
-static const char *TAG = "HTTP/AEMO";
+#include "aemo.h"
+
+static const char *TAG = "aemo";
 
 #define WEB_SERVER "aemo.com.au"
 #define WEB_PORT "443"
@@ -17,9 +19,7 @@ static const char *TAG = "HTTP/AEMO";
 extern const char server_root_cert_pem_start[] asm("_binary_server_root_cert_pem_start");
 extern const char server_root_cert_pem_end[]   asm("_binary_server_root_cert_pem_end");
 
-#define REGION "SA1"
-
-void parse_aemo_json(char *ptr)
+void parse_aemo_json(char *ptr, struct aemo *aemo_data)
 {
 	const cJSON *regions;
 	const cJSON *parameter;
@@ -31,21 +31,23 @@ void parse_aemo_json(char *ptr)
 	cJSON_ArrayForEach(parameter, regions)
 	{
 		cJSON *name = cJSON_GetObjectItemCaseSensitive(parameter, "REGIONID");
-		//printf("Region %s\n",name->valuestring);
-		if (strcmp(name->valuestring, REGION) == 0) {
+		//ESP_LOGI(TAG, Region %s\n",name->valuestring);
+		if (strcmp(name->valuestring, aemo_data->region) == 0) {
 			cJSON *settlement = cJSON_GetObjectItemCaseSensitive(parameter, "SETTLEMENTDATE");
-			printf("South Australia %s\r\n",settlement->valuestring);
+			if (aemo_data->settlement != NULL) {
+				strcpy(aemo_data->settlement, settlement->valuestring);
+			}
 			cJSON *price = cJSON_GetObjectItemCaseSensitive(parameter, "PRICE");
 			cJSON *totaldemand = cJSON_GetObjectItemCaseSensitive(parameter, "TOTALDEMAND");
 			cJSON *netinterchange = cJSON_GetObjectItemCaseSensitive(parameter, "NETINTERCHANGE");
 			cJSON *scheduledgeneration = cJSON_GetObjectItemCaseSensitive(parameter, "SCHEDULEDGENERATION");
 			cJSON *semischeduledgeneration = cJSON_GetObjectItemCaseSensitive(parameter, "SEMISCHEDULEDGENERATION");
 
-			printf("Price: $%.02f MWh\r\n",price->valuedouble);
-			printf("Total Demand: %.02f MW\r\n",totaldemand->valuedouble);
-			printf("Export: %.02f MW\r\n",netinterchange->valuedouble);
-			printf("Scheduled Generation (Baseload): %.02f MW\r\n",scheduledgeneration->valuedouble);
-			printf("Semi Scheduled Generation (Renewable): %.02f MW\r\n",semischeduledgeneration->valuedouble);
+			aemo_data->price = price->valuedouble;
+			aemo_data->totaldemand = totaldemand->valuedouble;
+			aemo_data->netinterchange = netinterchange->valuedouble;
+			aemo_data->scheduledgeneration = scheduledgeneration->valuedouble;
+			aemo_data->semischeduledgeneration = semischeduledgeneration->valuedouble;
 		}
 	}
 	cJSON_Delete(NEM);
@@ -67,18 +69,19 @@ esp_err_t _http_event_handle(esp_http_client_event_t *evt)
 			break;
 		case HTTP_EVENT_ON_HEADER:
 			//ESP_LOGI(TAG, "HTTP_EVENT_ON_HEADER %s:%s\r\n",evt->header_key,evt->header_value);
-			if (strcmp(evt->header_key, "Date") == 0) printf("Header %s:%s\r\n",evt->header_key,evt->header_value);
-			if (strcmp(evt->header_key, "Expires") == 0) printf("Header %s:%s\r\n",evt->header_key,evt->header_value);
-			if (strcmp(evt->header_key, "Last-Modified") == 0) printf("Header %s:%s\r\n",evt->header_key,evt->header_value);
+			if (strcmp(evt->header_key, "Date") == 0) 
+				ESP_LOGI(TAG, "Header %s: %s",evt->header_key,evt->header_value);
+			if (strcmp(evt->header_key, "Expires") == 0) 
+				ESP_LOGI(TAG, "Header %s: %s",evt->header_key,evt->header_value);
+			if (strcmp(evt->header_key, "Last-Modified") == 0) 
+				ESP_LOGI(TAG, "Header %s: %s",evt->header_key,evt->header_value);
 			break;
 		case HTTP_EVENT_ON_DATA:
-			//ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
 			if (!esp_http_client_is_chunked_response(evt->client)) {
-			if (evt->user_data) {
-				//printf("Copying chunk\r\n");
-				memcpy(evt->user_data + output_len, evt->data, evt->data_len);
+				if (evt->user_data) {
+					memcpy(evt->user_data + output_len, evt->data, evt->data_len);
 				}
-			output_len += evt->data_len;
+				output_len += evt->data_len;
 			}
 			break;
 		case HTTP_EVENT_ON_FINISH:
@@ -94,46 +97,33 @@ esp_err_t _http_event_handle(esp_http_client_event_t *evt)
 	return ESP_OK;
 }
 
-void aemo_get_price(void)
+void aemo_get_price(struct aemo *aemo_data)
 {
 	int status_code;
 	int content_len;
 	char *buffer = NULL;
 
-	time_t now;
-	struct tm timeinfo;
-	char strftime_buf[64];
-
 	buffer = malloc(32768);
 
-	while (1) {
+	ESP_LOGI(TAG, "Fetching AEMO spot price");
 
-		printf("\r\nGetting AEMO Spot Price - ");
+	esp_http_client_config_t config = {
+		.url = "https://aemo.com.au/aemo/apps/api/report/ELEC_NEM_SUMMARY",
+		.event_handler = _http_event_handle,
+		.cert_pem = server_root_cert_pem_start,
+		.user_data = buffer,
+		};
 
-		esp_http_client_config_t config = {
-			.url = "https://aemo.com.au/aemo/apps/api/report/ELEC_NEM_SUMMARY",
-			.event_handler = _http_event_handle,
-			.cert_pem = server_root_cert_pem_start,
-			.user_data = buffer,
-			};
+	esp_http_client_handle_t client = esp_http_client_init(&config);
 
-		esp_http_client_handle_t client = esp_http_client_init(&config);
+	esp_err_t err = esp_http_client_perform(client);
 
-		time(&now);
-		localtime_r(&now, &timeinfo);
-		strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-		printf("Local Time: %s\n", strftime_buf);
-
-		esp_err_t err = esp_http_client_perform(client);
-
-		if (err == ESP_OK) {
-			//status_code = esp_http_client_get_status_code(client);
-			//content_len = esp_http_client_get_content_length(client);
-			//ESP_LOGI(TAG, "Status = %d, content_length = %d", status_code, content_len);
-			parse_aemo_json(buffer);
-			//free(buffer);
-		}
-		esp_http_client_cleanup(client);
-		sleep(60);
+	if (err == ESP_OK) {
+		status_code = esp_http_client_get_status_code(client);
+		content_len = esp_http_client_get_content_length(client);
+		ESP_LOGI(TAG, "Status = %d, Content length = %d bytes", status_code, content_len);
+		parse_aemo_json(buffer, aemo_data);
+		free(buffer);
 	}
+	esp_http_client_cleanup(client);
 }

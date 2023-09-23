@@ -1,0 +1,67 @@
+<html>
+<head>
+	<title>EVSE Time Switch</title>
+	<script>
+		function Restart() {
+			var xhr = new XMLHttpRequest();
+			xhr.open("POST", "/restart", true);
+			xhr.send("1");
+		}
+		function startUpload() {
+			var otafile = document.getElementById("otafile").files;
+
+			if (otafile.length == 0) {
+				alert("Error: No file selected");
+			} else {
+				document.getElementById("otafile").disabled = true;
+				document.getElementById("upload").disabled = true;
+
+				var file = otafile[0];
+				var xhr = new XMLHttpRequest();
+				xhr.onreadystatechange = function () {
+					if (xhr.readyState == 4) {
+						if (xhr.status == 200) {
+							document.open();
+							document.write(xhr.responseText);
+							document.close();
+						} else if (xhr.status == 0) {
+							alert("Error: Unable to connect to device");
+							location.reload()
+						} else {
+							alert(xhr.status + " Error\n" + xhr.responseText);
+							location.reload()
+						}
+					}
+				};
+
+				xhr.upload.onprogress = function (e) {
+					var progress = document.getElementById("progress");
+					progress.textContent = "Progress: " + (e.loaded / e.total * 100).toFixed(0) + "%";
+				};
+				xhr.open("POST", "/firmware_upgrade", true);
+				xhr.send(file);
+			}
+		}
+	</script>
+</head>
+<body>
+	Hello, this is a webpage
+
+	<h2>Firmware</h2>
+	<div>
+		<table>
+			<tr>
+				<td><label for="otafile">Firmware file:</label></td>
+				<td><input type="file" id="otafile" name="otafile" /></td>
+			</tr>
+		</table>
+	</div>
+	<div>
+		<button id="upload" type="button" onclick="startUpload()">Upload</button>
+	</div>
+
+
+	<div>
+		<button onclick="Restart()">Restart</button>
+	</div>
+</body>
