@@ -4,9 +4,15 @@
 #include <freertos/task.h>
 #include <sys/param.h>
 #include <esp_ota_ops.h>
+#include <time.h>
 #include "esp_flash.h"
 #include "esp_log.h"
+#include "cJSON.h"
+
+#include "defines.h"
 #include "http.h"
+#include "gpio.h"
+#include "aemo.h"
 
 static const char *TAG = "http";
 
@@ -18,9 +24,18 @@ static httpd_handle_t http_server = NULL;
 extern const uint8_t index_html_start[] asm("_binary_index_html_start");
 extern const uint8_t index_html_end[] asm("_binary_index_html_end");
 
+extern const uint8_t style_css_start[] asm("_binary_style_css_start");
+extern const uint8_t style_css_end[] asm("_binary_style_css_end");
+
 esp_err_t index_get_handler(httpd_req_t *req)
 {
 	httpd_resp_send(req, (const char *) index_html_start, index_html_end - index_html_start);
+	return ESP_OK;
+}
+
+esp_err_t css_get_handler(httpd_req_t *req)
+{
+	httpd_resp_send(req, (const char *) style_css_start, style_css_end - style_css_start);
 	return ESP_OK;
 }
 
@@ -138,10 +153,80 @@ esp_err_t firmware_upgrade_post_handler(httpd_req_t *req)
 	return ESP_OK;
 }
 
+esp_err_t firmware_version_handler(httpd_req_t *req) 
+{
+	char fwver[10];
+	sprintf(fwver, "%s\r\n", VERSION);
+	httpd_resp_set_type(req, "text/plain");
+	httpd_resp_send(req, fwver, strlen(fwver));
+	return ESP_OK;
+}
+
+esp_err_t read_status_get_handler(httpd_req_t *req)
+{
+	time_t now;
+	struct tm timeinfo;
+	char buf[32];
+
+	// Check if the request method is GET
+	if (req->method != HTTP_GET)
+	{
+		httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Only GET method allowed");
+		return ESP_FAIL;
+	}
+
+	time(&now);
+	localtime_r(&now, &timeinfo);
+
+	// Create a JSON object
+	cJSON *root = cJSON_CreateObject();
+
+	strftime(buf, sizeof(buf), "%A %B %d %Y", &timeinfo);
+	cJSON_AddStringToObject(root, "date", buf);
+
+	strftime(buf, sizeof(buf), "%I:%M:%S %p %Z", &timeinfo);
+	cJSON_AddStringToObject(root, "time", buf);	
+
+	sprintf(buf, "Solar Sponge");
+	cJSON_AddStringToObject(root, "tarrif", buf);	
+
+	sprintf(buf, "$%.02f", aemo_data.price);
+	cJSON_AddStringToObject(root, "price", buf);
+
+	sprintf(buf, "%.01f", aemo_data.renewables);
+	cJSON_AddStringToObject(root, "renewables", buf);
+
+	sprintf(buf, "%s", gpio_read_output1() ? "ON": "OFF");
+	cJSON_AddStringToObject(root, "output1", buf);
+
+	sprintf(buf, "%s", gpio_read_output2() ? "ON": "OFF");
+	cJSON_AddStringToObject(root, "output2", buf);
+
+	// Convert the JSON object to a string
+	char *jsonString = cJSON_Print(root);
+	
+	// Set the response content type
+	httpd_resp_set_type(req, "application/json");
+
+	// Send the sample JSON data as the response body
+	httpd_resp_send(req, jsonString, strlen(jsonString));
+
+	cJSON_Delete(root);
+
+	return ESP_OK;
+}
+
 httpd_uri_t index_get = {
 	.uri		= "/",
 	.method		= HTTP_GET,
 	.handler	= index_get_handler,
+	.user_ctx	= NULL
+};
+
+httpd_uri_t ccs_get = {
+	.uri		= "/style.css",
+	.method		= HTTP_GET,
+	.handler	= css_get_handler,
 	.user_ctx	= NULL
 };
 
@@ -159,6 +244,20 @@ httpd_uri_t firmware_upgrade_post = {
 	.user_ctx	= NULL
 };
 
+httpd_uri_t fwver_get = {
+	.uri	  = "/firmware_version",
+	.method   = HTTP_GET,
+	.handler  = firmware_version_handler,
+	.user_ctx = NULL
+};
+
+httpd_uri_t status_get = {
+	.uri	  = "/read_status",
+	.method   = HTTP_GET,
+	.handler  = read_status_get_handler,
+	.user_ctx = NULL
+};
+
 esp_err_t http_server_init(void)
 {
 	httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -166,8 +265,11 @@ esp_err_t http_server_init(void)
 	ESP_LOGI(TAG, "Starting HTTP server on port %d", config.server_port);
 	if (httpd_start(&http_server, &config) == ESP_OK) {
 		httpd_register_uri_handler(http_server, &index_get);
+		httpd_register_uri_handler(http_server, &ccs_get);
 		httpd_register_uri_handler(http_server, &restart_post);
 		httpd_register_uri_handler(http_server, &firmware_upgrade_post);
+		httpd_register_uri_handler(http_server, &fwver_get);
+		httpd_register_uri_handler(http_server, &status_get);
 	}
 
 	return http_server == NULL ? ESP_FAIL : ESP_OK;

@@ -12,9 +12,7 @@
 
 static const char *TAG = "aemo";
 
-#define WEB_SERVER "aemo.com.au"
-#define WEB_PORT "443"
-#define WEB_URL "https://aemo.com.au/aemo/apps/api/report/ELEC_NEM_SUMMARY"
+struct aemo aemo_data;
 
 extern const char server_root_cert_pem_start[] asm("_binary_server_root_cert_pem_start");
 extern const char server_root_cert_pem_end[]   asm("_binary_server_root_cert_pem_end");
@@ -51,6 +49,9 @@ void parse_aemo_json(char *ptr, struct aemo *aemo_data)
 		}
 	}
 	cJSON_Delete(NEM);
+
+	// Calculate renewables
+	aemo_data->renewables = (aemo_data->semischeduledgeneration / (aemo_data->totaldemand)) * 100;
 }
 
 esp_err_t _http_event_handle(esp_http_client_event_t *evt)

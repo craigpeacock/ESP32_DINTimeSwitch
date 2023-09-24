@@ -38,7 +38,6 @@ void app_main(void)
 	// Initialise http server
 	http_server_init();
 
-	struct aemo aemo_data;
 	aemo_data.region = "SA1";
 	aemo_data.settlement = malloc(25);
 	aemo_get_price(&aemo_data);

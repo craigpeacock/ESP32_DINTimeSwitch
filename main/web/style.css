@@ -1,0 +1,114 @@
+.header {
+    background-color: rgb(238, 238, 238);
+    justify-content: center;
+    max-width: 940px;
+    margin: 10px auto 10px auto;
+    padding: 5px 20px 5px 20px;
+    border-style:hidden
+    border-width: 1px;
+    border-radius: 5px;
+}
+
+h1 {
+    font-size: 45px;
+    font-style: italic;
+    font-family: 'Source Sans Pro', sans-serif;
+    color:#008CBA;
+    text-align: center;
+}
+
+h2 {
+    font-size: 25px;
+    font-style:normal;
+    font-family: 'Source Sans Pro', sans-serif;
+    color: black;
+    text-align: left;
+}
+
+.container1 {
+    display: block;
+    max-width: 940px;
+    margin: 10px auto 10px auto;
+    padding: 10px 40px;
+    clear: both;
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+    align-items: center;
+    align-content: space-around;
+    border-radius: 10px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #3333336e;
+    background-color: hsla(0, 0%, 100%, 0.8);
+    box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+  }
+
+.container2 {
+    justify-content: center;
+    max-width: 940px;
+    margin: 10px auto 10px auto;
+    padding: 5px 20px 20px 20px;
+    border-style:hidden
+    border-width: 1px;
+    border-radius: 5px;
+    background-color: rgb(230, 230, 230);
+}
+
+.btn {
+    background-color:#04AA6D;
+    border-radius:5px;
+    font-size: 17px;
+    font-family: 'Source Sans Pro', sans-serif;
+    padding:7px 18px;}
+
+body {
+    font-size: 16px;
+    font-family: 'Source Sans Pro', sans-serif;
+}
+
+label {
+    font-size: 17px;
+    font-family: 'Source Sans Pro', sans-serif;
+}
+
+a {
+    color: #FFFFFF;
+    text-decoration: none;
+}
+
+button {
+    background-color: #008CBA;
+    color: #FFFFFF;
+    border: #FFFFFF;
+    border-radius:5px;
+    font-size: 17px;
+    padding:7px 18px;
+    transition-duration: 0.4s;
+}
+
+.button1 {
+    background-color: #4CAF50;
+}
+
+.button1:hover {
+    background-color: #02754b;
+}
+
+.button2 {
+    background-color: #008CBA;
+}
+
+.button2:hover {
+    background-color: #047aa1;
+}
+
+.button3 {
+    background-color: #f44336;
+}
+
+.button3:hover {
+    background-color: #c72419;
+}
+
+

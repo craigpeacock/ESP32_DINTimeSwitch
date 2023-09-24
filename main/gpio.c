@@ -18,3 +18,13 @@ void gpio_init(void)
 	gpio_set_level(GPIO_OUT2, 0);
 	gpio_set_direction(GPIO_OUT2, GPIO_MODE_OUTPUT);
 }
+
+bool gpio_read_output1(void)
+{
+	return(gpio_get_level(GPIO_OUT1));
+}
+
+bool gpio_read_output2(void)
+{
+	return(gpio_get_level(GPIO_OUT2));
+}

@@ -46,7 +46,12 @@ void display_local_time(void)
 		ESP_LOGI(TAG, "Local Time: %s", buf);
 	}
 
-	//char strftime_buf[64];
-	//strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-	//ESP_LOGI(TAG, "Local Time: %s", strftime_buf);
+	char strftime_buf[64];
+
+	strftime(strftime_buf, sizeof(strftime_buf), "%A %B %d %Y", &timeinfo);
+	ESP_LOGI(TAG, "Local Date: %s", strftime_buf);
+
+	strftime(strftime_buf, sizeof(strftime_buf), "%I:%M %p", &timeinfo);
+	ESP_LOGI(TAG, "Local Time: %s", strftime_buf);
+
 }

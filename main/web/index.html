@@ -1,13 +1,16 @@
 <html>
 <head>
 	<title>EVSE Time Switch</title>
+	<link href=style.css rel=stylesheet type=text/css>
 	<script>
+		window.onload = GetFWVer();
+		setInterval(function() { GetStatus(); }, 1000);
 		function Restart() {
 			var xhr = new XMLHttpRequest();
 			xhr.open("POST", "/restart", true);
 			xhr.send("1");
 		}
-		function startUpload() {
+		function FirmwareUpload() {
 			var otafile = document.getElementById("otafile").files;
 
 			if (otafile.length == 0) {
@@ -42,26 +45,134 @@
 				xhr.send(file);
 			}
 		}
+		function GetFWVer() {
+			var ver = new XMLHttpRequest();
+			ver.onreadystatechange = function() {
+				if (this.readyState == 4 && this.status == 200) {
+					document.getElementById("fw_version").innerHTML = this.responseText;
+				}
+			};
+			ver.open("GET", "firmware_version", true);
+			ver.send();
+		}
+		function GetStatus() {
+			var status = new XMLHttpRequest();
+			status.onreadystatechange = function() {
+				if (status.readyState == 4 && status.status == 200) {
+					var response = JSON.parse(status.responseText);
+					// Process the JSON data here
+					console.log(response);
+					document.getElementById("date").innerHTML = response.date;
+					document.getElementById("time").innerHTML = response.time;
+					document.getElementById("tarrif").innerHTML = response.tarrif;
+					document.getElementById("price").innerHTML = response.price;
+					document.getElementById("renewables").innerHTML = response.renewables;
+					document.getElementById("output1").innerHTML = response.output1;
+					document.getElementById("output2").innerHTML = response.output2;
+				}
+			};
+			status.open("GET", "/read_status", true);
+			status.send();
+		}
 	</script>
 </head>
 <body>
-	Hello, this is a webpage
 
-	<h2>Firmware</h2>
-	<div>
+	<div class="header">
+		<H1>EVSE Smart Switch</H1>
+	</div>
+
+	<div class="container2">
+		<h2>Status</h2>
+		<center>
 		<table>
 			<tr>
-				<td><label for="otafile">Firmware file:</label></td>
-				<td><input type="file" id="otafile" name="otafile" /></td>
+				<td width="150px">Date</td>
+				<td><span id="date">0</span></td>
+			</tr>
+			<tr>
+				<td>Time</td>
+				<td><span id="time">0</span></td>
+			</tr>
+			<tr>
+				<td>Network Tarrif</td>
+				<td><span id="tarrif">0</span></td>
+			</tr>
+			<tr>
+				<td>Price</td>
+				<td><span id="price">0</span> MWh</td>
+			</tr>
+			<tr>
+				<td>Renewables</td>
+				<td><span id="renewables">0</span> %</td>
+			</tr>
+			<tr>
+				<td>Output 1</td>
+				<td><span id="output1">0</span></td>
+			</tr>
+			<tr>
+				<td>Output 2</td>
+				<td><span id="output2">0</span></td>
 			</tr>
 		</table>
-	</div>
-	<div>
-		<button id="upload" type="button" onclick="startUpload()">Upload</button>
+		<br><br>
+		<button class="button1" onclick="Relay1()">Toggle Relay 1</button>
+		<button class="button1" onclick="Relay2()">Toggle Relay 2</button>
+		</center>
 	</div>
 
+	<div class="container2">
+		<h2>Schedule</h2>
+		<center>
+			<input type="checkbox" id="sun" name="sun"><label for="sun">Sun</label>
+			<input type="checkbox" id="mon" name="mon"><label for="mon">Mon</label>
+			<input type="checkbox" id="tue" name="tue"><label for="tue">Tue</label>
+			<input type="checkbox" id="wed" name="wed"><label for="wed">Wed</label>
+			<input type="checkbox" id="thu" name="thu"><label for="thu">Thu</label>
+			<input type="checkbox" id="fri" name="fri"><label for="fri">Fri</label>
+			<input type="checkbox" id="sat" name="sat"><label for="sat">Sat</label>
+			<br>
+			<table>
+				<tr style="height:50px">
+					<td width="150px"><b>Start Charging</b></td>
+					<td width="100px">
+						<label for="on_hours">Hour</label>
+						<select id="on_hours" name="on_hours">
+						</select>
+					</td>
+					<td width="100px">
+						<label for="on_mins">Min</label>
+						<select id="on_mins" name="on_mins">
+						</select>
+					</td>
+				</tr><tr>
+					<td><B>Stop Charging</B></td>
+					<td>
+						<label for="off_hours">Hour</label>
+						<select id="off_hours" name="off_hours">
+						</select>
+					</td>
+					<td>
+						<label for="off_min">Min</label>
+						<select id="off_min" name="off_min">
+						</select>
+					</td>
+				</tr>
+			</table>
+		</center>
+	</div>
 
-	<div>
-		<button onclick="Restart()">Restart</button>
+	<div class="container2">
+		<h2>Firmware</h2>
+		<p>Current Firmware <span id="fw_version">0</span></p>
+		<center>
+		<label for="otafile">Select Firmware </label>
+		<input type="file" id="otafile" name="otafile" />
+		<br><br>
+		</center>
+		<div align="right">
+			<button id="upload" type="button" class="button2" onclick="FirmwareUpload()">Upload</button>
+			<button class="button3" onclick="Restart()">Restart</button>
+		</div>
 	</div>
 </body>
