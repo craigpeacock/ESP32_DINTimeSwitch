@@ -333,6 +333,83 @@ esp_err_t output_post_handler(httpd_req_t *req)
 	return ESP_OK;
 }
 
+esp_err_t schedule_post_handler(httpd_req_t *req)
+{
+	char buf[1000];
+	esp_ota_handle_t ota_handle;
+	int remaining = req->content_len;
+
+	while (remaining > 0) {
+		int recv_len = httpd_req_recv(req, buf, MIN(remaining, sizeof(buf)));
+
+		// Timeout Error: Just retry
+		if (recv_len == HTTPD_SOCK_ERR_TIMEOUT) {
+			continue;
+
+		// Serious Error: Abort OTA
+		} else if (recv_len <= 0) {
+			httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Protocol Error");
+			return ESP_FAIL;
+		}
+
+		remaining -= recv_len;
+	}
+
+	ESP_LOGI(TAG, "Content Length [%d]", req->content_len);
+	buf[req->content_len] = 0;
+	ESP_LOGI(TAG, "Output [%s]", buf);
+
+	return ESP_OK;
+}
+
+esp_err_t schedule_get_handler(httpd_req_t *req)
+{
+	char buf[32];
+	int8_t i;
+
+	// Check if the request method is GET
+	if (req->method != HTTP_GET)
+	{
+		httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Only GET method allowed");
+		return ESP_FAIL;
+	}
+
+	// Create a JSON object
+	cJSON *root = cJSON_CreateObject();
+	
+	cJSON_AddBoolToObject(root, "sun", false);
+	cJSON_AddBoolToObject(root, "mon", true);
+	cJSON_AddBoolToObject(root, "tue", true);
+	cJSON_AddBoolToObject(root, "wed", true);
+	cJSON_AddBoolToObject(root, "thu", true);
+	cJSON_AddBoolToObject(root, "fri", true);
+	cJSON_AddBoolToObject(root, "sat", false);
+
+	cJSON_AddNumberToObject(root, "on_hours", 10);
+	cJSON_AddNumberToObject(root, "on_mins", 0);
+	cJSON_AddStringToObject(root, "on_period", "AM");
+
+	cJSON_AddNumberToObject(root, "off_hours", 3);
+	cJSON_AddNumberToObject(root, "off_mins", 0);
+	cJSON_AddStringToObject(root, "off_period", "PM");
+
+	cJSON_AddStringToObject(root, "max_price", "9.50");
+
+	// Convert the JSON object to a string
+	char *jsonString = cJSON_Print(root);
+	
+	// Set the response content type
+	httpd_resp_set_type(req, "application/json");
+
+	// Send the sample JSON data as the response body
+	httpd_resp_send(req, jsonString, strlen(jsonString));
+
+	cJSON_Delete(root);
+
+	return ESP_OK;
+}
+
+
 httpd_uri_t index_get = {
 	.uri		= "/",
 	.method		= HTTP_GET,
@@ -389,9 +466,25 @@ httpd_uri_t output_post = {
 	.user_ctx = NULL
 };
 
+httpd_uri_t schedule_post = {
+	.uri	  = "/schedule/save",
+	.method   = HTTP_POST,
+	.handler  = schedule_post_handler,
+	.user_ctx = NULL
+};
+
+httpd_uri_t schedule_get = {
+	.uri	  = "/schedule/load",
+	.method   = HTTP_GET,
+	.handler  = schedule_get_handler,
+	.user_ctx = NULL
+};
+
 esp_err_t http_server_init(void)
 {
 	httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+
+	config.max_uri_handlers = 10;
 
 	ESP_LOGI(TAG, "Starting HTTP server on port %d", config.server_port);
 	if (httpd_start(&http_server, &config) == ESP_OK) {
@@ -403,6 +496,8 @@ esp_err_t http_server_init(void)
 		httpd_register_uri_handler(http_server, &status_get);
 		httpd_register_uri_handler(http_server, &history_get);
 		httpd_register_uri_handler(http_server, &output_post);
+		httpd_register_uri_handler(http_server, &schedule_post);
+		httpd_register_uri_handler(http_server, &schedule_get);
 	}
 
 	return http_server == NULL ? ESP_FAIL : ESP_OK;

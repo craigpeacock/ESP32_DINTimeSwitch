@@ -5,6 +5,8 @@
 	<script>
 		window.onload = GetFWVer();
 		window.onload = GetStatus();
+		window.onload = ScheduleLoad();
+		window.onload = GetHistory();
 		setInterval(function() { GetStatus(); }, 1000);
 		setInterval(function() { GetHistory(); }, 30000);
 		function Restart() {
@@ -81,34 +83,33 @@
 			xhr.open("POST", "/output", true);
 			xhr.send(output);
 		}
-
 		window.addEventListener("load",function() {
 			var select = document.getElementById("on_hours"); 
-			for(var i = 0; i < 24; i++) {
+			for(var i = 1; i <= 12; i++) {
 				var el = document.createElement("option");
 				el.textContent = i.toString().padStart(2,'0');
-				el.value = i.toString().padStart(2,'0');
+				el.value = i.toString();
 				select.appendChild(el);
 			}
 			var select = document.getElementById("off_hours"); 
-			for(var i = 0; i < 24; i++) {
+			for(var i = 1; i <= 12; i++) {
 				var el = document.createElement("option");
 				el.textContent = i.toString().padStart(2,'0');
-				el.value = i.toString().padStart(2,'0');
+				el.value = i.toString();
 				select.appendChild(el);
 			}
 			var select = document.getElementById("on_mins"); 
 			for(var i = 0; i < 60; i++) {
 				var el = document.createElement("option");
 				el.textContent = i.toString().padStart(2,'0');
-				el.value = i.toString().padStart(2,'0');
+				el.value = i.toString();
 				select.appendChild(el);
 			}
 			var select = document.getElementById("off_mins"); 
 			for(var i = 0; i < 60; i++) {
 				var el = document.createElement("option");
 				el.textContent = i.toString().padStart(2,'0');
-				el.value = i.toString().padStart(2,'0');
+				el.value = i.toString();
 				select.appendChild(el);
 			}
 		},false);
@@ -149,6 +150,53 @@
 			};
 			status.open("GET", "/history", true);
 			status.send();
+		}
+		function ScheduleSave() {
+			var xhr = new XMLHttpRequest();
+			var data = {
+				sun: document.getElementById("sun").checked,
+				mon: document.getElementById("mon").checked,
+				tue: document.getElementById("tue").checked,
+				wed: document.getElementById("wed").checked,
+				thu: document.getElementById("thu").checked,
+				fri: document.getElementById("fri").checked,
+				sat: document.getElementById("sat").checked,
+				on_hours: parseInt(document.getElementById("on_hours").value),
+				on_mins: parseInt(document.getElementById("on_mins").value),
+				on_period: document.getElementById("on_period").value,
+				off_hours: parseInt(document.getElementById("off_hours").value),
+				off_mins: parseInt(document.getElementById("off_mins").value),
+				off_period: document.getElementById("off_period").value,
+				max_price: document.getElementById("max_price").value,
+			};
+			xhr.open("POST", "/schedule/save", true);
+			xhr.send(JSON.stringify(data));
+		}
+		function ScheduleLoad() {
+			var xhr = new XMLHttpRequest();
+			xhr.onreadystatechange = function() {
+				if (xhr.readyState == 4 && xhr.status == 200) {
+					var response = JSON.parse(xhr.responseText);
+					// Process the JSON data here
+					console.log(response);
+					document.getElementById("sun").checked = response.sun;
+					document.getElementById("mon").checked = response.mon;
+					document.getElementById("tue").checked = response.tue;
+					document.getElementById("wed").checked = response.wed;
+					document.getElementById("thu").checked = response.thu;
+					document.getElementById("fri").checked = response.fri;
+					document.getElementById("sat").checked = response.sat;
+					document.getElementById("on_hours").value = response.on_hours;
+					document.getElementById("on_mins").value = response.on_mins;
+					document.getElementById("on_period").value = response.on_period;
+					document.getElementById("off_hours").value = response.off_hours;
+					document.getElementById("off_mins").value = response.off_mins;
+					document.getElementById("off_period").value = response.off_period;
+					document.getElementById("max_price").value = response.max_price;
+				}
+			};
+			xhr.open("GET", "/schedule/load", true);
+			xhr.send();
 		}
 	</script>
 </head>
@@ -217,7 +265,7 @@
 					<td>
 						<select id="on_hours" name="on_hours"></select>
 						<select id="on_mins" name="on_mins"></select>
-						<select id="period">
+						<select id="on_period">
 							<option>AM</option>
 							<option>PM</option>
 						</select>
@@ -228,7 +276,7 @@
 					<td>
 						<select id="off_hours" name="off_hours"></select>
 						<select id="off_mins" name="off_mins"></select>
-						<select id="period">
+						<select id="off_period">
 							<option>AM</option>
 							<option>PM</option>
 						</select>
@@ -239,6 +287,8 @@
 					<td style="text-align: center"><input type="text" id="max_price" style="text-align:right" placeholder="7.0" size="10">/MWh</td>
 				</tr>
 			</table>
+			<button class="button2" onclick="ScheduleLoad()">Load</button>
+			<button class="button3" onclick="ScheduleSave()">Save</button>
 		</center>
 	</div>
 
