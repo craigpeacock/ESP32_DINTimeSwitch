@@ -8,6 +8,7 @@
 #include "esp_crt_bundle.h"
 #include "cJSON.h"
 
+#include "defines.h"
 #include "aemo.h"
 
 static const char *TAG = "aemo";
@@ -32,8 +33,10 @@ void parse_aemo_json(char *ptr, struct aemo *aemo_data)
 		//ESP_LOGI(TAG, Region %s\n",name->valuestring);
 		if (strcmp(name->valuestring, aemo_data->region) == 0) {
 			cJSON *settlement = cJSON_GetObjectItemCaseSensitive(parameter, "SETTLEMENTDATE");
-			if (aemo_data->settlement != NULL) {
-				strcpy(aemo_data->settlement, settlement->valuestring);
+			if (settlement != NULL) {
+				/* String in the format of 2020-12-19T15:10:00 */
+					if (strptime((char *)settlement->valuestring, "%Y-%m-%dT%H:%M:%S", &aemo_data->settlement) == NULL)
+						ESP_LOGE(TAG, "Unable to parse settlement time\r\n");
 			}
 			cJSON *price = cJSON_GetObjectItemCaseSensitive(parameter, "PRICE");
 			cJSON *totaldemand = cJSON_GetObjectItemCaseSensitive(parameter, "TOTALDEMAND");
@@ -46,6 +49,7 @@ void parse_aemo_json(char *ptr, struct aemo *aemo_data)
 			aemo_data->netinterchange = netinterchange->valuedouble;
 			aemo_data->scheduledgeneration = scheduledgeneration->valuedouble;
 			aemo_data->semischeduledgeneration = semischeduledgeneration->valuedouble;
+			aemo_data->valid = true;
 		}
 	}
 	cJSON_Delete(NEM);

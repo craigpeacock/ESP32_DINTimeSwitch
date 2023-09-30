@@ -4,5 +4,7 @@
 void gpio_init(void);
 bool gpio_read_output1(void);
 bool gpio_read_output2(void);
+void gpio_toggle_output1(void);
+void gpio_toggle_output2(void);
 
 #endif

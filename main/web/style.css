@@ -25,6 +25,15 @@ h2 {
     text-align: left;
 }
 
+table.settlement th, table.settlement td  {
+	text-align: center;
+	width: 150px;
+}
+
+table.settlement tr.even {
+	background-color: #d6d6d6;
+}
+
 .container1 {
     display: block;
     max-width: 940px;
@@ -111,4 +120,14 @@ button {
     background-color: #c72419;
 }
 
+.file-upload {
+    display: inline-block;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 17px;
+}
 
+select {
+    padding: 2px 8px 2px 8px;
+    font-size: 14px;
+}

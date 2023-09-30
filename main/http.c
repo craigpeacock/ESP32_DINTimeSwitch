@@ -216,6 +216,123 @@ esp_err_t read_status_get_handler(httpd_req_t *req)
 	return ESP_OK;
 }
 
+esp_err_t history_get_handler(httpd_req_t *req)
+{
+	char buf[32];
+	int8_t i;
+
+	// Check if the request method is GET
+	if (req->method != HTTP_GET)
+	{
+		httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Only GET method allowed");
+		return ESP_FAIL;
+	}
+
+	struct tm settlement;
+	double price;
+	double totaldemand;
+	double netinterchange;
+	double scheduledgeneration;
+	double semischeduledgeneration;
+	double renewables;
+
+	// Create a JSON object
+	cJSON *root = cJSON_CreateObject();
+	cJSON *intervals = cJSON_CreateArray();
+	
+	cJSON_AddItemToObject(root, "interval", intervals);
+
+	// Set to next extry (oldest)
+	i = aemo_idx;
+
+	for (int x = 0; x < HISTORY; x++) {
+
+		if (aemo_history[i].valid == true) {
+			
+			cJSON *period = cJSON_CreateObject();
+
+			sprintf(buf, "%02d:%02d:%02d",
+								aemo_history[i].settlement.tm_hour,
+								aemo_history[i].settlement.tm_min,
+								aemo_history[i].settlement.tm_sec);
+			cJSON_AddStringToObject(period, "settlement", buf);
+
+			sprintf(buf, "%.02f", aemo_history[i].price);
+			cJSON_AddStringToObject(period, "price", buf);
+
+			sprintf(buf, "%.01f", aemo_history[i].totaldemand);
+			cJSON_AddStringToObject(period, "totaldemand", buf);
+
+			sprintf(buf, "%.01f", aemo_history[i].netinterchange);
+			cJSON_AddStringToObject(period, "netinterchange", buf);
+
+			sprintf(buf, "%.01f", aemo_history[i].scheduledgeneration);
+			cJSON_AddStringToObject(period, "scheduledgeneration", buf);
+
+			sprintf(buf, "%.01f", aemo_history[i].semischeduledgeneration);
+			cJSON_AddStringToObject(period, "semischeduledgeneration", buf);
+
+			sprintf(buf, "%.01f", aemo_history[i].renewables);
+			cJSON_AddStringToObject(period, "renewables", buf);
+
+			sprintf(buf, "%d", x);
+			cJSON_AddItemToArray(intervals, period);
+		}
+		
+		if (--i < 0)
+			i = HISTORY-1;
+	}
+
+	// Convert the JSON object to a string
+	char *jsonString = cJSON_Print(root);
+	
+	// Set the response content type
+	httpd_resp_set_type(req, "application/json");
+
+	// Send the sample JSON data as the response body
+	httpd_resp_send(req, jsonString, strlen(jsonString));
+
+	cJSON_Delete(root);
+
+	return ESP_OK;
+}
+
+esp_err_t output_post_handler(httpd_req_t *req)
+{
+	char buf[1000];
+	esp_ota_handle_t ota_handle;
+	int remaining = req->content_len;
+
+	while (remaining > 0) {
+		int recv_len = httpd_req_recv(req, buf, MIN(remaining, sizeof(buf)));
+
+		// Timeout Error: Just retry
+		if (recv_len == HTTPD_SOCK_ERR_TIMEOUT) {
+			continue;
+
+		// Serious Error: Abort OTA
+		} else if (recv_len <= 0) {
+			httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Protocol Error");
+			return ESP_FAIL;
+		}
+
+		remaining -= recv_len;
+	}
+
+	char value = buf[0];	
+	ESP_LOGI(TAG, "Output [%c], Content Length [%d]", value, req->content_len);
+
+	if (value == '1') {
+		gpio_toggle_output1();
+	}
+
+	if (value == '2') {
+		gpio_toggle_output2();
+	}
+
+	return ESP_OK;
+}
+
 httpd_uri_t index_get = {
 	.uri		= "/",
 	.method		= HTTP_GET,
@@ -258,6 +375,20 @@ httpd_uri_t status_get = {
 	.user_ctx = NULL
 };
 
+httpd_uri_t history_get = {
+	.uri	  = "/history",
+	.method   = HTTP_GET,
+	.handler  = history_get_handler,
+	.user_ctx = NULL
+};
+
+httpd_uri_t output_post = {
+	.uri	  = "/output",
+	.method   = HTTP_POST,
+	.handler  = output_post_handler,
+	.user_ctx = NULL
+};
+
 esp_err_t http_server_init(void)
 {
 	httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -270,6 +401,8 @@ esp_err_t http_server_init(void)
 		httpd_register_uri_handler(http_server, &firmware_upgrade_post);
 		httpd_register_uri_handler(http_server, &fwver_get);
 		httpd_register_uri_handler(http_server, &status_get);
+		httpd_register_uri_handler(http_server, &history_get);
+		httpd_register_uri_handler(http_server, &output_post);
 	}
 
 	return http_server == NULL ? ESP_FAIL : ESP_OK;

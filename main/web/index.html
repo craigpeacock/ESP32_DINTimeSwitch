@@ -4,7 +4,9 @@
 	<link href=style.css rel=stylesheet type=text/css>
 	<script>
 		window.onload = GetFWVer();
+		window.onload = GetStatus();
 		setInterval(function() { GetStatus(); }, 1000);
+		setInterval(function() { GetHistory(); }, 30000);
 		function Restart() {
 			var xhr = new XMLHttpRequest();
 			xhr.open("POST", "/restart", true);
@@ -74,6 +76,80 @@
 			status.open("GET", "/read_status", true);
 			status.send();
 		}
+		function Output(output) {
+			var xhr = new XMLHttpRequest();
+			xhr.open("POST", "/output", true);
+			xhr.send(output);
+		}
+
+		window.addEventListener("load",function() {
+			var select = document.getElementById("on_hours"); 
+			for(var i = 0; i < 24; i++) {
+				var el = document.createElement("option");
+				el.textContent = i.toString().padStart(2,'0');
+				el.value = i.toString().padStart(2,'0');
+				select.appendChild(el);
+			}
+			var select = document.getElementById("off_hours"); 
+			for(var i = 0; i < 24; i++) {
+				var el = document.createElement("option");
+				el.textContent = i.toString().padStart(2,'0');
+				el.value = i.toString().padStart(2,'0');
+				select.appendChild(el);
+			}
+			var select = document.getElementById("on_mins"); 
+			for(var i = 0; i < 60; i++) {
+				var el = document.createElement("option");
+				el.textContent = i.toString().padStart(2,'0');
+				el.value = i.toString().padStart(2,'0');
+				select.appendChild(el);
+			}
+			var select = document.getElementById("off_mins"); 
+			for(var i = 0; i < 60; i++) {
+				var el = document.createElement("option");
+				el.textContent = i.toString().padStart(2,'0');
+				el.value = i.toString().padStart(2,'0');
+				select.appendChild(el);
+			}
+		},false);
+		function GetHistory() {
+			var status = new XMLHttpRequest();
+			status.onreadystatechange = function() {
+				if (status.readyState == 4 && status.status == 200) {
+					var response = JSON.parse(status.responseText);
+					// Process the JSON data here
+					let table = document.getElementById("history");
+					var rowCount = table.rows.length;
+					for (var i = 0; i < rowCount; i++) {
+						table.deleteRow(0);
+					}	
+
+					for (var i = 0; i < response.interval.length; i++) {
+					
+						let row = table.insertRow();
+						if (i % 2) row.setAttribute('class', 'even');
+
+						let settlement = row.insertCell(0);
+						let price = row.insertCell(1);
+						let totaldemand = row.insertCell(2);
+						let netinterchange = row.insertCell(3);
+						let scheduledgeneration = row.insertCell(4);
+						let semischeduledgeneration = row.insertCell(5);
+						let renewables = row.insertCell(6);
+
+						settlement.innerHTML = response.interval[i].settlement;
+						price.innerHTML = response.interval[i].price;
+						totaldemand.innerHTML = response.interval[i].totaldemand;
+						netinterchange.innerHTML = response.interval[i].netinterchange;
+						scheduledgeneration.innerHTML = response.interval[i].scheduledgeneration;
+						semischeduledgeneration.innerHTML = response.interval[i].semischeduledgeneration;
+						renewables.innerHTML = response.interval[i].renewables;
+					}
+				}
+			};
+			status.open("GET", "/history", true);
+			status.send();
+		}
 	</script>
 </head>
 <body>
@@ -100,7 +176,7 @@
 			</tr>
 			<tr>
 				<td>Price</td>
-				<td><span id="price">0</span> MWh</td>
+				<td><span id="price">0</span> /MWh</td>
 			</tr>
 			<tr>
 				<td>Renewables</td>
@@ -116,59 +192,83 @@
 			</tr>
 		</table>
 		<br><br>
-		<button class="button1" onclick="Relay1()">Toggle Output 1</button>
-		<button class="button1" onclick="Relay2()">Toggle Output 2</button>
+		<button class="button1" onclick="Output(1)">Toggle Output 1</button>
+		<button class="button1" onclick="Output(2)">Toggle Output 2</button>
 		</center>
 	</div>
 
 	<div class="container2">
 		<h2>Schedule</h2>
 		<center>
-			<input type="checkbox" id="sun" name="sun"><label for="sun">Sun</label>
-			<input type="checkbox" id="mon" name="mon"><label for="mon">Mon</label>
-			<input type="checkbox" id="tue" name="tue"><label for="tue">Tue</label>
-			<input type="checkbox" id="wed" name="wed"><label for="wed">Wed</label>
-			<input type="checkbox" id="thu" name="thu"><label for="thu">Thu</label>
-			<input type="checkbox" id="fri" name="fri"><label for="fri">Fri</label>
-			<input type="checkbox" id="sat" name="sat"><label for="sat">Sat</label>
-			<br>
 			<table>
-				<tr style="height:50px">
-					<td width="150px"><b>Start Charging</b></td>
-					<td width="100px">
-						<label for="on_hours">Hour</label>
-						<select id="on_hours" name="on_hours">
-						</select>
+				<tr style="height:40px">
+					<td colspan="2">
+						<input type="checkbox" id="sun" name="sun"><label for="sun">Sun</label>
+						<input type="checkbox" id="mon" name="mon"><label for="mon">Mon</label>
+						<input type="checkbox" id="tue" name="tue"><label for="tue">Tue</label>
+						<input type="checkbox" id="wed" name="wed"><label for="wed">Wed</label>
+						<input type="checkbox" id="thu" name="thu"><label for="thu">Thu</label>
+						<input type="checkbox" id="fri" name="fri"><label for="fri">Fri</label>
+						<input type="checkbox" id="sat" name="sat"><label for="sat">Sat</label>
 					</td>
-					<td width="100px">
-						<label for="on_mins">Min</label>
-						<select id="on_mins" name="on_mins">
-						</select>
-					</td>
-				</tr><tr>
-					<td><B>Stop Charging</B></td>
+				</tr>
+				<tr style="height:40px">
+					<td width="150px">Start Charging</td>
 					<td>
-						<label for="off_hours">Hour</label>
-						<select id="off_hours" name="off_hours">
+						<select id="on_hours" name="on_hours"></select>
+						<select id="on_mins" name="on_mins"></select>
+						<select id="period">
+							<option>AM</option>
+							<option>PM</option>
 						</select>
 					</td>
+				</tr>
+				<tr style="height:40px">
+					<td width="150px">Stop Charging</td>
 					<td>
-						<label for="off_min">Min</label>
-						<select id="off_min" name="off_min">
+						<select id="off_hours" name="off_hours"></select>
+						<select id="off_mins" name="off_mins"></select>
+						<select id="period">
+							<option>AM</option>
+							<option>PM</option>
 						</select>
 					</td>
+				</tr>
+				<tr style="height:40px">
+					<td width="150px"><label>Maximum Price $</label></td>
+					<td style="text-align: center"><input type="text" id="max_price" style="text-align:right" placeholder="7.0" size="10">/MWh</td>
 				</tr>
 			</table>
 		</center>
 	</div>
 
 	<div class="container2">
+		<h2>History</h2>
+		<table class="settlement">
+			<thead>
+				<tr>
+					<th>Settlement</th>
+					<th>Price ($/MWh)</th>
+					<th>Demand (MW)</th>
+					<th>Interconnector (MW)</th>
+					<th>Scheduled (MW)</th>
+					<th>Semi (MW)</th>
+					<th>Renewables (%)</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tbody id="history"></tbody>
+			</tbody>
+		</table>
+	</div>
+
+	<div class="container2">
 		<h2>Firmware</h2>
-		<p>Current Firmware <span id="fw_version">0</span></p>
 		<center>
-		<label for="otafile">Select Firmware </label>
-		<input type="file" id="otafile" name="otafile" />
-		<br><br>
+		<label for="otafile">Update Firmware</label>
+		<input type="file" class="file-upload" id="otafile" name="otafile" />
+		<br>
+		<p>Current Firmware <span id="fw_version">0</span></p>
 		</center>
 		<div align="right">
 			<button id="upload" type="button" class="button2" onclick="FirmwareUpload()">Upload</button>

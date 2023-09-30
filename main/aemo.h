@@ -1,13 +1,16 @@
 #ifndef MAIN_AEMO_H_
 #define MAIN_AEMO_H_
 
+#include <time.h>
+
 #define WEB_SERVER "aemo.com.au"
 #define WEB_PORT "443"
 #define WEB_URL "https://aemo.com.au/aemo/apps/api/report/ELEC_NEM_SUMMARY"
 
 struct aemo {
 	char *region;
-	char *settlement;
+	bool valid;
+	struct tm settlement;
 	double price;
 	double totaldemand;
 	double netinterchange;
