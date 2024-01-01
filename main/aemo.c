@@ -15,6 +15,9 @@ static const char *TAG = "aemo";
 
 struct aemo aemo_data;
 
+// The PEM file was extracted from the output of this command:
+// openssl s_client -showcerts -connect visualisations.aemo.com.au:443 </dev/null
+
 extern const char server_root_cert_pem_start[] asm("_binary_server_root_cert_pem_start");
 extern const char server_root_cert_pem_end[]   asm("_binary_server_root_cert_pem_end");
 
@@ -113,7 +116,7 @@ void aemo_get_price(struct aemo *aemo_data)
 	ESP_LOGI(TAG, "Fetching AEMO spot price");
 
 	esp_http_client_config_t config = {
-		.url = "https://aemo.com.au/aemo/apps/api/report/ELEC_NEM_SUMMARY",
+		.url = "https://visualisations.aemo.com.au/aemo/apps/api/report/ELEC_NEM_SUMMARY",
 		.event_handler = _http_event_handle,
 		.cert_pem = server_root_cert_pem_start,
 		.user_data = buffer,
